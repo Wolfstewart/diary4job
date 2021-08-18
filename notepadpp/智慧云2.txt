@@ -1,0 +1,103 @@
+智慧云：
+	智慧巡检：
+		直接改为spark流处理（可行，已与马恩来讨论，规则重新设计）。
+		
+		边缘计算（盒子直传告警信息）还是云计算(spark流计算)待确定
+		
+		规则：
+						condition1
+			不等于		0
+			等于		1
+			大于		2
+			大于等于	3
+			小于		4
+			小于等于	5
+
+						condMethod
+			无			0
+			与			1
+			或			2
+		
+		需求：
+			(1)数据解析
+				根据数据编码规范和监测指标项规范，执行感知数据解析异常或超阈值情况判断逻辑，记录异常信息日志，同时发送通知信息。
+			(2)数据存储
+				需要存储的数据分为设备静态数据、设备动态数据、平台配置数据、异常数据等 
+			(3)专题分析
+				根据采购方需求进行专题定制分析，如超阈值专题、设备状态热 度分析专题等。
+			(4)数据查询
+				设备采集数据、系统通知、超阈值数据、系统日志等查询。
+			(5)人工智能监控
+				智能分析各数据指标关联关系、异常检测，趋势预测，故障根因分析，故障告警
+				
+		入手点：
+			spark + kafka 以24h为窗口滑动处理，统计24h内超阈值的总时长、超阈值数据分布等等。
+			
+				参考：
+					https://thingsboard.io/
+					https://thingsboard.io/docs/user-guide/rule-engine-2-0/overview/
+				
+			
+			水泵电流（功率或用电量）与浮球高度（水位）、流量等相关关系挖掘，
+			features: water-level,flow
+			label: electric current
+		
+		-1. 接入站点/盒子总数聚合
+		-2. 接入监控点总数聚合
+		-3. 正常站点总数，有告警站点总数聚合，离线站点总数聚合（计算在线率/异常率）
+		-4. 异常站点区域分析，是否存在相近站点出现大面积异常（应急指挥设备瘫痪）
+		-5. 气象灾害预警数据，上报消息地理位置周围是否有站点（应急指挥气象灾害）
+			-- 经纬度确定确定距离，还是地区正则匹配？
+		-6. 水质超阈值数据聚合：6h/24h/7d/1mon内出现入水cod/总磷/氨氮指标超阈值的站区明细，6h/24h/7d/1mon内超阈值总时长统计，h/24h/7d/1mon内超阈值时间段分布，h/24h/7d/1mon内超阈值指标值分布（应急指挥入水水质超标）
+
+		当前(嘉净)需求：
+			入水水质超标：目前(嘉净)有4个污水处理厂具备入水水质传感器数据。
+			需求：过去6小时不同指标(cod/ph等)的超阈值详情分析，(超标时长、指标趋势、基于该站点历史情况预估未来多久可恢复)
+			
+			
+			
+				两个维度，时间
+			实现：	
+				features:time,value,
+				label:
+				
+				(1)基于统计？不同维度的置信度？
+				(2)时序数据，HMM或CRF?
+				
+		国家地表水水质自动检测实时数据发布系统：
+			http://106.37.208.243:8068/GJZ/Business/Publish/Main.html?nsukey=izcwxfBd9wvE6xZJmS9DC%2BOo7fv7ybS8nnsrmgK4cyMrp54jCB0NEXQBVjHOqwFgPrUPw2B8TL6b2mQbPLe4HWhy0yPx80Vj1mmfXMC4nBUa3naLxIrNOvCXjHO4a25yILUSi%2Fu7K%2F2QrmjBVN1DaQ9k1056DUZQRdPPYtpWzEWXHPpeZoHNvcoDS0EtEC6HodxX7A34wVTWuAOGl5kh9w%3D%3D
+		
+
+		公司mongoDB：
+			http://signin.aliyun.com/1729156087145256/login.htm
+			https://dms.aliyun.com/?spm=5176.13889335.0.0.2d0d42317FhMMc&dbType=mongo&instanceSource=RDS&host=dds-bp1ad54d158a20e41.mongodb.rds.aliyuncs.com&port=3717&regionId=cn-hangzhou
+			
+			
+			http://signin.aliyun.com/1729156087145256/login.htm
+			
+			kaifahd@xxx 
+			密码：kaifahd001
+		
+	
+	智慧派单：
+
+		未变
+		
+	舆情监控：
+		数据仍然来自mongodb(爬虫)，接入kafka，再接入spark做nlp情感分析，写回目标数据库不变。
+		
+		kafka直接把爬虫mongodb数据（舆情、政策、招投标、天气等）接过来，然后kafka流分3路：
+			舆情数据接spark+mlib+nlp（情感色彩分析，有视频参考例子），实时汇总值写mongodb，同时根据点赞/转发数目+负面情感色彩做应急指挥的“重大舆情”推送；
+			政策和招投标接spark做实时汇总统计，实时汇总值写mongodb，当数据明确来自嘉净项目地区或来自生态环境部时，做应急指挥的“政策导向”推送；
+			
+			天气数据接spark做应急指挥的“气象灾害”评估（站区附近暴雨、泥石流、台风等）；
+				
+				使用api获取实时气象预警，
+			
+				天气预警API：
+					http://data.cma.cn/dataGis/disasterWarning/getWarningDataByCnty?startTime=2020-10-09+08:00:00&endTime=2020-10-09+23:00:00
+				
+				气象数据中心网站：
+					http://data.cma.cn/
+
+

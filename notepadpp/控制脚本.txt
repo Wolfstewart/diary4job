@@ -1,0 +1,62 @@
+#include <stdio.h>
+#include <tm_user.h>
+#include <tm_sys.h>
+void myfunc(void)
+{
+  unsigned int s2, s6, s7;
+  s6 = TM_getIO(6);
+  s7 = TM_getIO(7);
+  s2 = TM_getIO(2);
+
+  if (!s6 && !s7){
+    if (s2) {
+      TM_setIO(3, 1); 
+    } else {
+      TM_delay(5000);  // delay 5s
+      TM_setIO(3, 0);
+    }
+  } else if(!s6 && s7) {
+    TM_setIO(3, 0);
+  } else {
+    TM_setIO(2, 0);
+    TM_setIO(3, 0);
+  }
+}
+myfunc();
+
+
+#include <stdio.h>
+#include <tm_user.h>
+#include <tm_sys.h>
+void myfunc(void)
+{
+  unsigned int s2, s6, s7, iomode, ontime;
+  s6 = TM_getIO(6);
+  s7 = TM_getIO(7);
+  s2 = TM_getIO(2);
+  TM_getIORunMode(2, &iomode, &ontime, &offtime);
+  printf("Y2: on=%d, off=%d, elapse=%d\r\n", ontime, offtime, TM_getIORunElapsed(2));
+
+  if (!s6 && !s7){
+    if (s2) {
+      TM_setIO(3, 1); 
+    } else {
+      if (TM_getIORunElapsed(2) > offtime) {
+        TM_setIO(2, 1);
+      } else {
+        TM_delay(5000);  // delay 5s
+        TM_setIO(3, 0);
+      }
+    }
+  } else if(!s6 && s7) {
+    if (TM_getIORunElapsed(2) > offtime) {
+      TM_setIO(2, 1);
+    } 
+    TM_setIO(3, 0);
+  } else {
+    TM_setIO(2, 0);
+    TM_setIO(3, 0);
+  }
+}
+
+myfunc();

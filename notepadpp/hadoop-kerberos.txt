@@ -1,0 +1,601 @@
+参考博客：
+	http://cs-cjl.com/2018/12_03_hdfs_auth_with_kerberos
+	
+	
+	
+docker run --network br0 --hostname worker001 --dns 192.168.1.5 --name worker001 -d -it centos sequenceiq/kerbero
+
+
+kerberos:
+	docker run --network br0 -p88:88 -p750:750 --hostname kerberos --name kerberos -v keytab:/mnt/keytab -d sequenceiq/kerberos 
+
+一台Kerberos server，两台hadoop
+
+centos:7 启动
+
+docker run -d -it --network br0  --privileged=true --hostname kserver --name kserver centos:7 /usr/sbin/init
+
+docker run -d -it --network br0  --privileged=true --hostname namenode --name namenode -v /home/wzl/software:/bigdata -p 50070:50070 centos:7 /usr/sbin/init
+
+docker run -d -it --network br0  --privileged=true --hostname datanode --name datanode -v /home/wzl/software:/bigdata centos:7 /usr/sbin/init
+
+
+修改host文件
+cat > /etc/hosts <<EOF
+127.0.0.1 localhost
+::1 localhost ip6-localhost ip6-loopback
+fe00::0 ip6-localnet
+ff00::0 ip6-mcastprefix
+ff02::1 ip6-allnodes
+ff02::2 ip6-allrouters
+172.20.0.5 datanode.pxkj.cn datanode
+172.20.0.4 namenode.pxkj.cn namenode
+172.20.0.2 kserver.pxkj.cn kserver
+EOF
+
+
+yum install initscripts -y
+yum -y install epel-release
+yum install -y autoconf automake libtool cmake ncurses-devel openssl-devel lzo-devel zlib-devel gcc gcc-c++ bzip2-devel cmake3 lrzsz ntp
+cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+ntpdate -u 0.cn.pool.ntp.org
+
+
+vi /etc/ntp.conf
+在server那里最上面添加一行
+server 0.cn.pool.ntp.org iburst
+然后执行
+service ntpd start
+chkconfig ntpd on
+
+
+groupadd hadoop;useradd hdfs -g hadoop -p hadoop;useradd hive -g hadoop -p hive;useradd yarn -g hadoop -p yarn;useradd mapred -g hadoop -p mapred
+
+
+namenode datanode环境变量设置
+
+export HADOOP_HOME=/bigdata/hadoop
+export MAVEN_HOME=/bigdata/apache-maven-3.0.5
+export JAVA_HOME=/bigdata/java-1.8
+export PATH=$JAVA_HOME/bin:$HADOOP_HOME/bin:$HADOOP_HOME/sbin:$MAVEN_HOME/bin:$PATH
+# export HADOOP_COMMON_LIB_NATIVE_DIR=$HADOOP_HOME/lib/native
+# export HADOOP_OPTS="-Djava.library.path=${HADOOP_HOME}/lib/native"
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/bigdata/hadoop/lib/native
+
+
+ks上操作：
+yum install -y krb5-libs krb5-server krb5-workstation
+
+vim /etc/krb5.conf
+
+[logging]
+default = FILE:/var/log/krb5libs.log
+kdc = FILE:/var/log/krb5kdc.log
+admin_server = FILE:/var/log/kadmind.log
+[libdefaults]
+default_realm = PXKJ.CN
+dns_lookup_realm = false
+dns_lookup_kdc = false
+ticket_lifetime = 24h
+renew_lifetime = 7d
+forwardable = true
+[realms]
+PXKJ.CN = {
+kdc = kserver.pxkj.cn
+admin_server = kserver.pxkj.cn
+}
+[domain_realm]
+.pxkj.cn = PXKJ.CN
+pxkj.cn = PXKJ.CN
+
+
+
+ vi /var/kerberos/krb5kdc/kdc.conf
+kdc_ports = 88
+kdc_tcp_ports = 88
+[realms]
+PXKJ.CN = {
+ #master_key_type = aes256-cts
+acl_file = /var/kerberos/krb5kdc/kadm5.acl
+dict_file = /usr/share/dict/words
+admin_keytab = /var/kerberos/krb5kdc/kadm5.keytab
+supported_enctypes = aes256-cts:normal aes128-cts:normal des3-hmac-sha1:normal
+arcfour-hmac:normal des-hmac-sha1:normal des-cbc-md5:normal des-cbc-crc:normal
+}
+
+
+初始化数据库：
+kdb5_util create -s -r PXKJ.CN
+
+
+客户端：yum -y install krb5-libs krb5-workstation
+
+kinit root/admin@PXKJ.CN
+
+用户规划：
+nn/namenode.pxkj.cn@PXKJ.CN
+
+
+addprinc -randkey nn/namenode.pxkj.cn@PXKJ.CN
+addprinc -randkey HTTP/namenode.pxkj.cn@PXKJ.CN
+ 
+
+mkdir /etc/security/keytabs
+# 防止启动或者操作的过程中需要输入密码，创建免密登录的keytab文件
+# 创建nn账户的keytab
+ktadd -k /etc/security/keytabs/nn.service.keytab nn/namenode.pxkj.cn@PXKJ.CN
+ktadd -k /etc/security/keytabs/spnego.service.keytab HTTP/namenode.pxkj.cn@PXKJ.CN
+
+# 改权限
+chown hdfs:hadoop *
+
+
+chmod 400 *
+chmod 440 spnego.service.keytab
+
+dn
+addprinc -randkey dn/datanode.pxkj.cn@PXKJ.CN
+addprinc -randkey HTTP/datanode.pxkj.cn@PXKJ.CN
+
+
+ktadd -k /etc/security/keytabs/dn.service.keytab dn/datanode.pxkj.cn@PXKJ.CN
+ktadd -k /etc/security/keytabs/spnego.service.keytab HTTP/datanode.pxkj.cn@PXKJ.CN
+
+
+chmod 400 *
+
+mkdir -p /data/nn;mkdir /data/dn; mkdir /data/nm-local;mkdir /data/nm-log;mkdir /data/mr-history
+
+
+# 将如下内容保存到.sh内，然后执行 sh xxx.sh 以root执行
+# 其中内部的配置根据自己的目录设置修改
+HADOOP_HOME=/bigdata/hadoop
+DFS_NAMENODE_NAME_DIR=/data/nn
+DFS_DATANODE_DATA_DIR=/data/dn
+NODEMANAGER_LOCAL_DIR=/data/nm-local
+NODEMANAGER_LOG_DIR=/data/nm-log
+MR_HISTORY=/data/mr-history
+if [ ! -n "$HADOOP_HOME" ];then
+    echo "请填入hadoop home 路径"
+    exit
+fi
+chgrp -R hadoop $HADOOP_HOME
+chown -R hdfs:hadoop $HADOOP_HOME
+chown root:hadoop $HADOOP_HOME
+chown hdfs:hadoop $HADOOP_HOME/sbin/distribute-exclude.sh
+chown hdfs:hadoop $HADOOP_HOME/sbin/hadoop-daemon.sh
+chown hdfs:hadoop $HADOOP_HOME/sbin/hadoop-daemons.sh
+chown hdfs:hadoop $HADOOP_HOME/sbin/hdfs-config.cmd
+chown hdfs:hadoop $HADOOP_HOME/sbin/hdfs-config.sh
+chown mapred:hadoop $HADOOP_HOME/sbin/mr-jobhistory-daemon.sh
+chown hdfs:hadoop $HADOOP_HOME/sbin/refresh-namenodes.sh
+chown hdfs:hadoop $HADOOP_HOME/sbin/slaves.sh
+chown hdfs:hadoop $HADOOP_HOME/sbin/start-all.cmd
+chown hdfs:hadoop $HADOOP_HOME/sbin/start-all.sh
+chown hdfs:hadoop $HADOOP_HOME/sbin/start-balancer.sh
+chown hdfs:hadoop $HADOOP_HOME/sbin/start-dfs.cmd
+chown hdfs:hadoop $HADOOP_HOME/sbin/start-dfs.sh
+chown hdfs:hadoop $HADOOP_HOME/sbin/start-secure-dns.sh
+chown yarn:hadoop $HADOOP_HOME/sbin/start-yarn.cmd
+chown yarn:hadoop $HADOOP_HOME/sbin/start-yarn.sh
+chown hdfs:hadoop $HADOOP_HOME/sbin/stop-all.cmd
+chown hdfs:hadoop $HADOOP_HOME/sbin/stop-all.sh
+chown hdfs:hadoop $HADOOP_HOME/sbin/stop-balancer.sh
+chown hdfs:hadoop $HADOOP_HOME/sbin/stop-dfs.cmd
+chown hdfs:hadoop $HADOOP_HOME/sbin/stop-dfs.sh
+chown hdfs:hadoop $HADOOP_HOME/sbin/stop-secure-dns.sh
+chown yarn:hadoop $HADOOP_HOME/sbin/stop-yarn.cmd
+chown yarn:hadoop $HADOOP_HOME/sbin/stop-yarn.sh
+chown yarn:hadoop $HADOOP_HOME/sbin/yarn-daemon.sh
+chown yarn:hadoop $HADOOP_HOME/sbin/yarn-daemons.sh
+chown mapred:hadoop $HADOOP_HOME/bin/mapred*
+chown yarn:hadoop $HADOOP_HOME/bin/yarn*
+chown hdfs:hadoop $HADOOP_HOME/bin/hdfs*
+chown hdfs:hadoop $HADOOP_HOME/etc/hadoop/capacity-scheduler.xml
+chown hdfs:hadoop $HADOOP_HOME/etc/hadoop/configuration.xsl
+chown hdfs:hadoop $HADOOP_HOME/etc/hadoop/core-site.xml
+chown hdfs:hadoop $HADOOP_HOME/etc/hadoop/hadoop-*
+chown hdfs:hadoop $HADOOP_HOME/etc/hadoop/hdfs-*
+chown hdfs:hadoop $HADOOP_HOME/etc/hadoop/httpfs-*
+chown hdfs:hadoop $HADOOP_HOME/etc/hadoop/kms-*
+chown hdfs:hadoop $HADOOP_HOME/etc/hadoop/log4j.properties
+chown mapred:hadoop $HADOOP_HOME/etc/hadoop/mapred-*
+chown hdfs:hadoop $HADOOP_HOME/etc/hadoop/slaves
+chown hdfs:hadoop $HADOOP_HOME/etc/hadoop/ssl-*
+chown yarn:hadoop $HADOOP_HOME/etc/hadoop/yarn-*
+chmod 755 -R $HADOOP_HOME/etc/hadoop/*
+chown root:hadoop $HADOOP_HOME/etc
+chown root:hadoop $HADOOP_HOME/etc/hadoop
+chown root:hadoop $HADOOP_HOME/etc/hadoop/container-executor.cfg
+chown root:hadoop $HADOOP_HOME/bin/container-executor
+chown root:hadoop $HADOOP_HOME/bin/test-container-executor
+chmod 6050 $HADOOP_HOME/bin/container-executor
+chown 6050 $HADOOP_HOME/bin/test-container-executor
+mkdir $HADOOP_HOME/logs
+mkdir $HADOOP_HOME/logs/hdfs
+mkdir $HADOOP_HOME/logs/yarn
+chown root:hadoop $HADOOP_HOME/logs
+chmod 775 $HADOOP_HOME/logs
+chown hdfs:hadoop $HADOOP_HOME/logs/hdfs
+chmod 755 -R $HADOOP_HOME/logs/hdfs
+chown yarn:hadoop $HADOOP_HOME/logs/yarn
+chmod 755 -R $HADOOP_HOME/logs/yarn
+chown -R hdfs:hadoop $DFS_DATANODE_DATA_DIR
+chown -R hdfs:hadoop $DFS_NAMENODE_NAME_DIR
+chmod 700 $DFS_DATANODE_DATA_DIR
+chmod 700 $DFS_NAMENODE_NAME_DIR
+chown -R yarn:hadoop $NODEMANAGER_LOCAL_DIR
+chown -R yarn:hadoop $NODEMANAGER_LOG_DIR
+chmod 770 $NODEMANAGER_LOCAL_DIR
+chmod 770 $NODEMANAGER_LOG_DIR
+chown -R mapred:hadoop $MR_HISTORY
+chmod 770 $MR_HISTORY
+
+
+
+
+# hadoop-env.sh 增加
+
+export JAVA_HOME=/bigdata/java-1.8
+export HADOOP_HOME=/bigdata/hadoop
+export HADOOP_CONF_DIR=/bigdata/hadoop/etc/hadoop
+export HADOOP_LOG_DIR=/bigdata/hadoop/logs/hdfs
+export HADOOP_COMMON_LIB_NATIVE_DIR=$HADOOP_HOME/lib/native
+export HADOOP_OPTS="-Djava.library.path=${HADOOP_HOME}/lib/native"
+
+yarn-env.sh 增加
+
+export JAVA_HOME=/bigdata/java-1.8
+export YARN_CONF_DIR=/bigdata/hadoop/etc/hadoop
+export YARN_LOG_DIR=/bigdata/hadoop/logs/yarn
+
+
+### mapred-env.sh 增加
+
+export JAVA_HOME=/bigdata/java-1.8
+
+### core-site.xml
+<configuration>
+ <property>
+  <name>fs.defaultFS</name>
+  <value>hdfs://namenode.pxkj.cn:8020</value>
+  <description></description>
+ </property>
+ <property>
+  <name>io.file.buffer.size</name>
+  <value>131072</value>
+  <description></description>
+ </property>
+<property>
+ <name>hadoop.security.authorization</name>
+ <value>true</value>
+ <description>是否开启hadoop的安全认证</description>
+</property>
+<property>
+ <name>hadoop.security.authentication</name>
+ <value>kerberos</value>
+ <description>使用kerberos作为hadoop的安全认证方案</description>
+</property>
+<property>
+ <name>hadoop.security.auth_to_local</name>
+ <value>
+	dn/datanode.pxkj.cn@PXKJ.CN
+    RULE:[2:$1](nn)s/.*/hdfs/
+    DEFAULT
+ </value>
+ <description>匹配规则，比如第一行就是表示将nn/*@PXKJ.CN的principal 绑定到hdfs账户
+上，也就是想要得到一个认证后的hdfs账户，请使用Kerberos的nn/*@PXKJ.CN账户来认证
+ 同理，下面的HTTP开头的Kerberos账户，其实也是绑定到了hdfs本地账户上，也就是如果想要操作
+hdfs，用nn和http都是可以的，只是我们在逻辑上多创建几个kerberos账户好分配，比如namenode分配
+nn， datanode分配给dn  其实 nn 和 dn 都是对应的hdfs</description>
+</property>
+<!-- HIVE KERBEROS -->
+<property>
+    <name>hadoop.proxyuser.hive.hosts</name>
+    <value>*</value>
+</property>
+<property>
+    <name>hadoop.proxyuser.hive.groups</name>
+    <value>*</value>
+</property>
+<property>
+    <name>hadoop.proxyuser.hdfs.hosts</name>
+    <value>*</value>
+</property>
+<property>
+    <name>hadoop.proxyuser.hdfs.groups</name>
+    <value>*</value>
+</property>
+<property>
+    <name>hadoop.proxyuser.HTTP.hosts</name>
+    <value>*</value>
+</property>
+<property>
+    <name>hadoop.proxyuser.HTTP.groups</name>
+    <value>*</value>
+</property>
+<property>
+    <name></name>
+    <value></value>
+</property>
+</configuration>
+
+
+### hdfs-site.xml
+
+<configuration>
+ <property>
+  <name>dfs.namenode.name.dir</name>
+  <value>/data/nn</value>
+  <description>Path on the local filesystem where the NameNode stores the
+namespace and transactions logs persistently.</description>
+ </property>
+ <property>
+  <name>dfs.namenode.hosts</name>
+  <value>namenode.pxkj.cn</value>
+  <description>List of permitted DataNodes.</description>
+ </property>
+ <property>
+  <name>dfs.blocksize</name>
+  <value>268435456</value>
+  <description></description>
+ </property>
+ <property>
+  <name>dfs.namenode.handler.count</name>
+  <value>100</value>
+  <description></description>
+ </property>
+ <property>
+  <name>dfs.datanode.data.dir</name>
+  <value>/data/dn</value>
+ </property>
+ <property>
+  <name>dfs.block.access.token.enable</name>
+  <value>true</value>
+ </property>
+  <!-- NameNode security config -->
+  <property>
+    <name>dfs.namenode.kerberos.principal</name>
+    <value>nn/_HOST@PXKJ.CN</value>
+    <description>namenode对应的kerberos账户为 nn/主机名@PXKJ.CN  _HOST会自动
+转换为主机名</description>
+  </property>
+  <property>
+    <name>dfs.namenode.keytab.file</name>
+    <!-- path to the HDFS keytab -->
+    <value>/etc/security/keytabs/nn.service.keytab</value>
+    <description>因为使用-randkey 创建的用户 密码随机不知道，所以需要用免密登录的
+keytab文件 指定namenode需要用的keytab文件在哪里</description>
+  </property>
+
+
+  <property>
+    <name>dfs.namenode.kerberos.internal.spnego.principal</name>
+   <value>HTTP/_HOST@PXKJ.CN</value>
+    <description>https 相关（如开启namenodeUI）使用的账户</description>
+  </property>
+  <!--Secondary NameNode security config -->
+  <property>
+    <name>dfs.secondary.namenode.kerberos.principal</name>
+    <value>sn/_HOST@PXKJ.CN</value>
+    <description>secondarynamenode使用的账户</description>
+  </property>
+  <property>
+    <name>dfs.secondary.namenode.keytab.file</name>
+    <!-- path to the HDFS keytab -->
+    <value>/etc/security/keytabs/sn.service.keytab</value>
+    <description>sn对应的keytab文件</description>
+  </property>
+  <property>
+    <name>dfs.secondary.namenode.kerberos.internal.spnego.principal</name>
+    <value>HTTP/_HOST@PXKJ.CN</value>
+    <description>sn需要开启http页面用到的账户</description>
+  </property>
+  <!-- DataNode security config -->
+  <property>
+    <name>dfs.datanode.kerberos.principal</name>
+    <value>dn/_HOST@PXKJ.CN</value>
+    <description>datanode用到的账户</description>
+  </property>
+  <property>
+    <name>dfs.datanode.keytab.file</name>
+    <!-- path to the HDFS keytab -->
+    <value>/etc/security/keytabs/dn.service.keytab</value>
+    <description>datanode用到的keytab文件路径</description>
+  </property>
+  <property>
+    <name>dfs.datanode.data.dir.perm</name>
+    <value>700</value>
+  </property>
+  <property>
+    <name>dfs.web.authentication.kerberos.principal</name>
+    <value>HTTP/_HOST@PXKJ.CN</value>
+    <description>web hdfs 使用的账户</description>
+  </property>
+  <property>
+    <name>dfs.web.authentication.kerberos.keytab</name>
+    <value>/etc/security/keytabs/spnego.service.keytab</value>
+    <description>对应的keytab文件</description>
+  </property>
+  <property>
+    <name>dfs.permissions.supergroup</name>
+    <value>hdfs</value>
+  </property>
+  <property>
+    <name>dfs.http.policy</name>
+    <value>HTTPS_ONLY</value>
+    <description>所有开启的web页面均使用https, 细节在ssl server 和client那个配置文
+件内配置</description>
+  </property>
+  <property>
+    <name>dfs.data.transfer.protection</name>
+    <value>integrity</value>
+  </property>
+  <property>
+    <name>dfs.https.port</name>
+    <value>50470</value>
+  </property>
+</configuration>
+
+
+HTTP:
+mkdir /etc/security/cdh.https
+cd /etc/security/cdh.https
+
+
+
+### ssl 的server上面做，密码都是123456,生成两个基础文件
+openssl req -new -x509 -keyout bd_ca_key -out bd_ca_cert -days 9999 -subj '/C=CN/ST=beijing/L=beijing/O=test/OU=test/CN=test'
+
+# 以下5步连接做，每台机器
+# 所有需要输入密码的地方全部输入123456（方便起见，如果你对密码有要求请自行修改）
+
+# 1 输入密码和确认密码：123456，此命令成功后输出keystore文件
+keytool -keystore keystore -alias localhost -validity 9999 -genkey -keyalg RSA -keysize 2048 -dname "CN=test, OU=test, O=test, L=beijing, ST=beijing, C=CN"
+
+# 2 输入密码和确认密码：123456，提示是否信任证书：输入yes，此命令成功后输出truststore文件
+keytool -keystore truststore -alias CARoot -import -file bd_ca_cert
+
+# 3 输入密码和确认密码：123456，此命令成功后输出cert文件
+keytool -certreq -alias localhost -keystore keystore -file cert
+
+# 4 此命令成功后输出cert_signed文件
+openssl x509 -req -CA bd_ca_cert -CAkey bd_ca_key -in cert -out cert_signed -days 9999 -CAcreateserial -passin pass:123456
+
+# 5 输入密码和确认密码：123456，是否信任证书，输入yes，此命令成功后更新keystore文件
+keytool -keystore keystore -alias CARoot -import -file bd_ca_cert
+
+# 6 输入密码和确认密码：123456
+keytool -keystore keystore -alias localhost -import -file cert_signed
+
+
+### ssl-server
+
+<configuration>
+<property>
+ <name>ssl.server.truststore.location</name>
+ <value>/etc/security/cdh.https/truststore</value>
+ <description>Truststore to be used by NN and DN. Must be specified.
+ </description>
+</property>
+<property>
+ <name>ssl.server.truststore.password</name>
+ <value>123456</value>
+ <description>Optional. Default value is "".
+ </description>
+</property>
+<property>
+ <name>ssl.server.truststore.type</name>
+ <value>jks</value>
+ <description>Optional. The keystore file format, default value is "jks".
+ </description>
+</property>
+<property>
+ <name>ssl.server.truststore.reload.interval</name>
+ <value>10000</value>
+ <description>Truststore reload check interval, in milliseconds.
+Default value is 10000 (10 seconds).
+ </description>
+</property>
+<property>
+ <name>ssl.server.keystore.location</name>
+ <value>/etc/security/cdh.https/keystore</value>
+ <description>Keystore to be used by NN and DN. Must be specified.
+ </description>
+</property>
+<property>
+ <name>ssl.server.keystore.password</name>
+ <value>123456</value>
+ <description>Must be specified.
+ </description>
+</property>
+<property>
+ <name>ssl.server.keystore.keypassword</name>
+ <value>123456</value>
+ <description>Must be specified.
+ </description>
+</property>
+<property>
+ <name>ssl.server.keystore.type</name>
+ <value>jks</value>
+ <description>Optional. The keystore file format, default value is "jks".
+ </description>
+</property>
+<property>
+ <name>ssl.server.exclude.cipher.list</name>
+ <value>TLS_ECDHE_RSA_WITH_RC4_128_SHA,SSL_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA,
+SSL_RSA_WITH_DES_CBC_SHA,SSL_DHE_RSA_WITH_DES_CBC_SHA,
+SSL_RSA_EXPORT_WITH_RC4_40_MD5,SSL_RSA_EXPORT_WITH_DES40_CBC_SHA,
+SSL_RSA_WITH_RC4_128_MD5</value>
+ <description>Optional. The weak security cipher suites that you want excluded
+from SSL communication.</description>
+</property>
+</configuration>
+
+### ssl-client
+
+<configuration>
+<property>
+ <name>ssl.client.truststore.location</name>
+ <value>/etc/security/cdh.https/truststore</value>
+ <description>Truststore to be used by clients like distcp. Must be
+specified.
+ </description>
+</property>
+<property>
+ <name>ssl.client.truststore.password</name>
+ <value>123456</value>
+ <description>Optional. Default value is "".
+ </description>
+</property>
+<property>
+ <name>ssl.client.truststore.type</name>
+ <value>jks</value>
+ <description>Optional. The keystore file format, default value is "jks".
+ </description>
+</property>
+<property>
+ <name>ssl.client.truststore.reload.interval</name>
+ <value>10000</value>
+ <description>Truststore reload check interval, in milliseconds.
+Default value is 10000 (10 seconds).
+ </description>
+</property>
+<property>
+ <name>ssl.client.keystore.location</name>
+ <value>/etc/security/cdh.https/keystore</value>
+ <description>Keystore to be used by clients like distcp. Must be
+specified.
+ </description>
+</property>
+<property>
+ <name>ssl.client.keystore.password</name>
+ <value>123456</value>
+ <description>Optional. Default value is "".
+ </description>
+</property>
+<property>
+ <name>ssl.client.keystore.keypassword</name>
+ <value>123456</value>
+ <description>Optional. Default value is "".
+ </description>
+</property>
+<property>
+ <name>ssl.client.keystore.type</name>
+ <value>jks</value>
+ <description>Optional. The keystore file format, default value is "jks".
+ </description>
+</property>
+</configuration>
+
+
+#启动namenode
+
+kinit -kt /etc/security/keytabs/nn.service.keytab nn/namenode.pxkj.cn@PXKJ.CN
+
+
+hadoop namenode -format
+
+yum remove -y krb5-libs krb5-server krb5-workstation
+
+

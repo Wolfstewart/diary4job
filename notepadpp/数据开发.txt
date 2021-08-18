@@ -1,0 +1,38 @@
+数据开发：
+	接入组件(reader)：多源数据接入
+	关联组件(merge/join)：
+		多表合并:
+			https://sparkbyexamples.com/spark/spark-sql-join-on-multiple-columns/
+		由于支持合并后填加前缀，暂不支持多个字段合并，待解决。	
+		
+		支持类型："inner", "cross", "full", "left","right", "left_semi", "left_anti"
+			2.4.7只能"left_semi", "left_anti"，不可使用semi和anti
+			
+	分割组件(split): 字段字符串切割形成多个新字段
+	选择组件(select): 选择保留哪些字段
+	过滤组件(filter): 条件过虑
+	去重组件(Deduplicate): 
+		mode针对特定字段或所有字段	
+		dropDuplicates : 根据特定字段算作重复记录
+		distinct ： 所有字段一致算作重复记录
+		
+	分支组件(branch):参考streamsets的stream selector
+		分支
+	输出组件(output):
+		
+		
+	
+	字段重命名组件(field rename)：
+		
+	排序组件(field order):
+	聚合组件(agg):
+	
+	
+git add src/main/scala/Pipeline.scala
+git commit -m "pipeline"
+git push
+
+
+运行：
+	spark-submit --class Pipeline --master local[*] target/scala-2.11/simple-project_2.11-1.0.jar
+

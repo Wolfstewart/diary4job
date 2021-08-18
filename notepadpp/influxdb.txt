@@ -1,0 +1,148 @@
+influxdb:
+
+	安装使用介绍：
+		https://www.jianshu.com/p/50f7b16699d5
+		https://www.cnblogs.com/LUA123/p/9507029.html
+	
+	influxdb 2:
+	
+	
+	
+	
+	个人阿里云部署influxdb2
+		docker run -d --restart=always --name influx2 -p 19999:9999 -v $PWD:/var/lib/influxdb quay.io/influxdb/influxdb:2.0.0-beta
+		username:root passwd:admininflux123 org:wzl bucket:fund
+	
+		
+		
+		
+		# 查看所有用户
+		> show users
+		user admin
+		---- -----
+		> 
+		# 创建一个root用户，设置密码为newpwd，主要不要使用双引号" 括起来，不然会报错
+		> create user "root" with password 'newpwd'
+		> 
+		# 再次查看用户信息，发现admin为false，说明还要设置一下权限。
+		> show users
+		user admin
+		---- -----
+		root false
+		> 
+		# 删除root用户
+		> drop user root
+		> 
+		> show users
+		user admin
+		---- -----
+		> 
+		# 重新设置root用户，并设置带上所有权限
+		> create user "root" with password 'newpwd' with all privileges
+		> 
+		# 发现admin权限为true了，那么admin的用户就创建好了。
+		> show users
+		user admin
+		---- -----
+		root true
+	
+	1.8 安装使用介绍：
+	docker run -d -p 8086:8086 -v /home/wzl/influx18:/var/lib/influxdb --name influxdb18 influxdb:1.8 
+	
+		user:root,	passwd:flux18
+	
+	
+grapha:
+	docker run -d -p 3000:3000 --name=grafana -v /home/wzl/db/grafana:/var/lib/grafana grafana/grafana
+	
+	
+	docker search grafana/grafana
+	
+	
+数据的导入导出：
+	参考：（1.8版本）
+		https://www.cnblogs.com/x602/p/13731779.html
+		https://blog.csdn.net/qq_40692113/article/details/96907645
+		
+	方案二：
+		influx_inspect export -datadir "/var/lib/influxdb/data" -waldir "/var/lib/influxdb/wal" -out "telemetry_vcdu_time" -database data_center -start 2020-07-21T08:00:01Z
+	
+	官网：
+		https://docs.influxdata.com/influxdb/v2.0/backup-restore/backup/
+		
+	
+备份数据：	
+	docker exec -it influx2 influx backup -p /tmp/influxdata/ -t Ya4WTdBq9tPuFVpwM2TIFRuVMuLgwQqF18aUw9l7v4nbuFx7BR15XdKQxTYyBpHtucAU2XdboKNKmzybncrkdw==
+	
+	复制到主机：docker cp influx2:/tmp/influxdata /home/wzl/backup
+	
+	
+大数据2上运行容器后直接恢复数据：
+	1. 数据全部复制（/root/.influxdbv2）
+		https://serverfault.com/questions/1024749/influxdb-2-0-backup-results-in-readdbrp-is-unauthorized-how-to-migrate-buc
+	
+	2. 数据恢复
+		https://blog.csdn.net/qq_31389153/article/details/112919999
+		
+		docker run --restart=always -d -p 9999:9999 --expose 8092 --expose 8097 -v /home/influxdb-data:/root/.influxdbv2 --name influxdb8086 quay.io/influxdb/influxdb:v2.0.3
+		
+		docker run -d --name influx2 -p 19999:9999 -v /home/wzl/influx/data:/var/lib/influxdb -v /home/wzl/influx/backuped:/backupdata -v /home/wzl/influx/backup/.influxdbv2:/root/.influxdbv2 quay.io/influxdb/influxdb:2.0.0-beta
+		
+		
+		
+	
+	执行成功，信息全部保留，包含用户名、密码和token
+	
+恢复数据到大数据1：
+	
+	0. 复制到大数据1：
+	scp -r backup/ pxkj@101.37.203.206:/bigdata/dockerwzl/influxdata/0304/
+	1. 启动容器
+	docker run -d --name influx2 -p 9999:9999 -v /bigdata/dockerwzl/influxdata/data:/var/lib/influxdb -v /bigdata/dockerwzl/influxdata/backup:/backupdata quay.io/influxdb/influxdb:2.0.0-beta
+	
+	2. influx restore
+	influx restore /backupdata/influxdata
+	
+	influxd restore --bolt-path /backupdata/influxdata/influxd.bolt
+	influxd restore --backup-path /backupdata/influxdata/
+
+
+spark read influx:
+	https://medium.com/@dganais/zeppelin-spark-and-influxdb-for-big-data-time-series-scenarios-75dc3b82f19b
+
+	// https://mvnrepository.com/artifact/com.influxdb/influxdb-spring
+	libraryDependencies += "com.influxdb" % "influxdb-spring" % "1.15.0"
+	
+	
+influx语句：
+val fluxQuery2 =
+      s"""
+        |from(bucket: "monitorinsp")
+        |  |> range(start: 1611198070,stop:1611201670)
+        |  |> filter(fn: (r) => (r["_measurement"] == "$measurement" and r["_field"] == "$field"))
+        |""".stripMargin
+		
+问题：
+	scala读取到的influxdb数据，转为datafram需要编写样例类，获取相应的字段(类属性)，不够灵活。
+	
+	解决：
+		读取的记录，转为json
+
+
+influxdb-java:
+	https://github.com/influxdata/influxdb-client-java/tree/master/client-scala#influxdb-client-scala
+
+
+
+
+
+嘉净influxdb安装：
+	docker run -d --name influx2 -p 9999:9999 -v /home/pxkj/influxdb2/data:/var/lib/influxdb -v /home/pxkj/influxdb2/backup:/backupdata quay.io/influxdb/influxdb:2.0.0-beta
+	
+
+在大数据2上部署第二个influxdb数据库以便搬运数据：
+	docker run --restart=always -d --name flux2hist -p 19999:9999 -v /root/fluxbackup/influxtmp:/var/lib/influxdb -v /root/fluxbackup/.influxdbv2:/root/.influxdbv2 quay.io/influxdb/influxdb:2.0.0-beta
+	
+	
+	给大数据1搬运使用，未运行
+	docker run --restart=always -d --name flux2pxbd1 -p 29999:9999 -v /root/bd1flux/influxtmp:/var/lib/influxdb -v /root/bd1flux/.influxdbv2:/root/.influxdbv2 quay.io/influxdb/influxdb:2.0.0-beta

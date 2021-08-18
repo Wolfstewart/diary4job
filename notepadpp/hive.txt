@@ -1,0 +1,163 @@
+https://cloud.tencent.com/developer/article/1436003
+
+1、linux进入 hive命令行
+
+beeline
+
+2、查看所有表
+
+show tables;
+
+3、查看是否是分区表
+
+show partitions tableName;
+
+4、查看表前几条记录
+
+select * from tableName limit 10;
+
+5、查看表某一分区数据
+
+select  * from tableName  where  分区字段=分区 limit  10;
+
+6、创建表(例子)
+
+create table if not exists tableName(
+
+name string,
+
+age int,
+
+sarlar bigint
+
+)row format delimited fields terminated by '\t' stored as textfile;
+
+7、模糊查找表
+
+show tables like '*tableName*';
+
+8.创建视图
+
+create view viewName  select * from tableName;
+
+9.删除表
+
+drop table tableName;
+
+10.就文本数据导入hive表
+
+load data local inpath '/usr/data/students.txt' into table studentTable partition(classId=1)
+
+11.创建带有分区的hive表
+
+create table if not exists tb_hive_table(
+
+name string,
+
+age int
+
+) partitioned by(ad string);
+
+
+pip install thriftpy==0.3.9 thrift-sasl==0.2.0 thrift==0.11.0 sasl==0.2.1 pure-sasl==0.3.0 impyla==0.14.1 -i https://pypi.tuna.tsinghua.edu.cn/simple
+
+pip install bitarray==1.1.0 thrift==0.9.3 thrift-sasl==0.2.1 six==1.12.0 pure-sasl==0.6.2 impyla==0.15.0
+pip install thrift==0.9.3 -i https://pypi.tuna.tsinghua.edu.cn/simple
+pip install thrift-sasl==0.2.1 -i https://pypi.tuna.tsinghua.edu.cn/simple
+pip install pure-sasl==0.6.2 -i https://pypi.tuna.tsinghua.edu.cn/simple
+pip install impyla==0.15.0 -i https://pypi.tuna.tsinghua.edu.cn/simple
+
+
+
+
+git add hiveDemo/.
+git commit -m "hive"
+git push
+
+
+spark-shell
+import org.apache.spark.sql.SparkSession
+val spark = SparkSession.builder.appName("dataConnector").config("spark.hadoop.hive.metastore.warehouse.dir", "/home/zy/tools/apache-hive-2.2.0-bin/metastore_db/").enableHiveSupport().getOrCreate()
+
+
+spark hive:
+通过spark.sql操作：
+  def main(args: Array[String]): Unit = {
+    val spark = SparkSession.builder()
+      .appName("spark-hive")
+      .config("hive.metastore.uris", "thrift://localhost:9083")
+      //      .config("spark.hadoop.hive.metastore.warehouse.dir", "hdfs://192.168.0.178:8020/user/hive/warehouse")
+      .enableHiveSupport()
+      .getOrCreate()
+
+    spark.sparkContext.setLogLevel("ERROR")
+    import spark.sql
+    //    spark.sql("use default")
+
+    // 从default.ptest读取数据
+    println("data from default.ptest")
+    val hiveDF = sql("SELECT * FROM default.ptest")
+    hiveDF.show()
+
+    // 数据写入到default.hivetest
+    hiveDF.createOrReplaceTempView("dataBlock")
+    spark.sql("select * from dataBlock")
+      .write
+      .mode("append")
+      .saveAsTable("default.hivetest")
+
+
+    // 获取其他数据库
+    println("databases list:")
+    val dbDF = spark.sql("show databases")
+    dbDF.show()
+
+    spark.sql("use jiajing")
+
+    val tbDF = spark.sql("show tables")
+    tbDF.show()
+
+    val dataDF = spark.sql("select * from monitor limit 10")
+    dataDF.show()
+
+        // 写入 其他库、表
+        val df = spark.createDataFrame(Seq(
+          ("ming", 20, 15552211521L),
+          ("x", 19, 13287994007L),
+          ("fing", 20, 15552211521L),
+          ("jong", 19, 13287994007L),
+          ("zing", 20, 15552211521L),
+          ("kong", 19, 13287994007L),
+          ("ping", 20, 15552211521L),
+          ("dsd", 19, 13287994007L),
+          ("fa", 20, 15552211521L),
+          ("ewa", 19, 13287994007L),
+          ("minfasfsg", 20, 15552211521L),
+          ("aa", 19, 13287994007L),
+          ("zdf", 21, 15552211523L)
+        )) toDF("name", "age", "phone")
+
+    println()
+    // 数据写入到 jiajing.hivetest
+    df.createOrReplaceTempView("dataBlock")
+    spark.sql("select * from dataBlock")
+      .write
+      .mode("append")
+      .saveAsTable("jiajing.infotable")
+
+      }
+
+DF直接写入：
+		batchDF.write
+          .mode("append")
+          .saveAsTable("jiajing.monitor")
+
+
+
+
+
+
+
+
+
+

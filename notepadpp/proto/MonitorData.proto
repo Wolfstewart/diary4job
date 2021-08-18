@@ -1,0 +1,12 @@
+syntax = "proto3";
+option java_package = "com.twtsoft.link.common.model.proto";
+option java_outer_classname = "MonitorDataProto";
+message MonitorData {
+    string boxNo = 1;
+    message NameValue {
+        string id = 1;
+        string value = 2;
+    }
+    repeated NameValue data = 2;
+    string time = 3;
+}

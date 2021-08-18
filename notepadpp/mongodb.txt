@@ -1,0 +1,46 @@
+mongodb:
+	windows安装:
+		https://www.cnblogs.com/weschen/p/8213746.html
+	
+		一次性启动：
+			（窗口）服务：
+			mongod --dbpath D:\mongo\data\db --logpath=D:\mongo\log\mongodb.log --logappend
+			
+			进入
+			mongo
+			
+		
+	使用：https://www.runoob.com/mongodb/mongodb-tutorial.html
+		
+		查看所有数据库： show dbs
+		
+		创建（存在就切换）数据库：use runoob
+	
+		ongoDB 删除当前数据库： db.dropDatabase()
+		
+		创建集合：db.createCollection("runoob")
+		查看集合：show tables，show collections 命令会更加准确点
+		删除集合：db.runoob.drop()
+		插入文档：
+			db.COLLECTION_NAME.insert(document)
+			db.COLLECTION_NAME.save(document)
+			
+			save()：如果 _id 主键存在则更新数据，如果不存在就插入数据。该方法新版本中已废弃，可以使用 db.collection.insertOne() 或 db.collection.replaceOne() 来代替。
+			insert(): 若插入的数据主键已经存在，则会抛 org.springframework.dao.DuplicateKeyException 异常，提示主键重复，不保存当前数据。
+		
+		查看数据：
+				db.col.find()			显示全部
+				db.col.find().pretty() 	只显示数据
+			
+			
+		更新文档：update() 和 save() 
+		
+	
+	MongoDB uri：
+		https://blog.csdn.net/yolohohohoho/article/details/89930730
+		
+	
+	
+	
+	
+	

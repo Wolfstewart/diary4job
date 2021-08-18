@@ -1,0 +1,21 @@
+
+HDFS Atlas:
+# 验证登陆
+curl 'http://47.95.207.206:8080/hdfs?path=/&user=hdfs/namenode@DEV&url=hdfs://namenode:9000&keyTab=/home/zy/hadoop.keytab'
+curl 'http://47.95.207.206:38080/hdfs?path=/&user=hdfs/namenode@DEV&url=hdfs://namenode:9000&keyTab=/mnt/hadoop.keytab'
+curl 'http://localhost:8082/hdfs?path=/&user=hdfs/namenode@DEV&url=hdfs://namenode:9000&keyTab=/mnt/hadoop.keytab'
+
+# 读取
+curl 'http://47.95.207.206:8080/rHdfs?filePath=/wzl/demo.csv'
+
+# list
+curl 'http://47.95.207.206:8080/lsHdfs?path=/zy'
+
+# 上传
+curl 'http://47.95.207.206:8080/upHdfs?srcPath=/home/zy/weibo.csv&desPath=/zy/nn.csv'
+
+# 下载
+curl 'http://47.95.207.206:8080/downHdfs?dfsPath=/wzl/demo.csv&localPath=/home/zy/down.csv'
+
+# 删除
+curl 'http://47.95.207.206:8080/delHdfs?path=/zy/nn.csv'

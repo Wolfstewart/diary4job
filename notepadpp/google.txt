@@ -1,0 +1,156 @@
+姓：wang
+名：aogust
+aogustw@gmail.com
+px1988@123
+
+阿里云：
+	tb60813483，aogust1988
+	47.102.84.74
+	172.17.68.247
+	root,Aogust1988!
+
+git
+Wolfstewart,G2eUu82sTS2JC7R, 保存在google账号中，不必记住
+aogust2020aogust
+
+#Colab的运行原理实际上就是给你分配一台远程的带GPU的主机，所以它的原始路径不是你的谷歌云盘（也就是你的代码文件）所在的路径。
+# 所以第一步我们先要把谷歌云盘挂载带到那台远程主机上：
+from google.colab import drive
+drive.mount('/content/gdrive')
+
+# 切换默认路径
+import os
+os.chdir("/content/gdrive/My Drive/sentiment/base_classifier")
+
+# 更换版本
+%tensorflow_version 1.12
+import tensorflow as tf
+tf.__version__
+
+# 关闭
+import os
+os.kill(os.getpid(), 9)
+
+# 查看是否使用GPU
+import tensorflow as tf
+tf.test.gpu_device_name()
+
+# 在使用哪个GPU
+from tensorflow.python.client import device_lib
+device_lib.list_local_devices()
+
+# RAM信息
+!cat /proc/meminfo
+
+# CPU信息
+!cat /proc/cpuinfo
+
+!nvidia-smi
+
+
+
+高德地图：
+	15632877484
+	pxaiot2020
+	
+	开发：
+		https://maplab.amap.com/dev/mapv/edit/a1c37010541f1f4ddc757dfc279d2e16
+
+
+百度地图：
+	示例Demo:
+		http://lbsyun.baidu.com/solutions/mapvdata
+	
+	项目地址(JS)：
+		https://github.com/huiyan-fe/mapv
+		
+	可视化：
+		https://mapv.baidu.com/editor/
+
+modis：https://ladsweb.modaps.eosdis.nasa.gov/search
+nasa 注册：
+Name: wang zhe
+Username: pxaiot20201111
+Email Address: wzl410@126.com
+passwd:Pxaiot2020
+
+
+
+
+高分16m数据：
+15632877484
+gf20200312
+
+
+gitee:
+	aogust
+	px20200312
+
+landSat:
+	aogust
+	px20200312LS
+
+
+华为大禹：
+	hw25139190
+	15632877484
+	px20200312
+华为开发：
+	aogust
+	px20200312
+
+征信：
+	aogustw
+	410421wzl4077
+	
+	
+docker hub:
+	aogust
+	aogustw@gmail
+	px20200312
+	
+
+目前已经在pxbd2上完成了streamset的transformer版本部署（docker方式），在这里：
+
+streamsets:
+	http://47.111.149.222:19630/
+	http://45.32.74.188:18630/
+	用户名，密码：
+	517632429@qq.com
+	csh*880524
+	
+	
+环境云：
+	http://www.envicloud.cn/pages/guide.html
+	aogust,wzl410@126,px20200312
+	
+	私钥：YW9NDXN0MTYXNDU3NDY0OTCWNW==
+	
+	基础URL
+		http://service.envicloud.cn:8082
+
+嘉净繁易：
+	http://app.strms.cn:10080/app/monitor/9432
+	
+阿里云青悦数据API：
+	AppKey：203916544     
+	AppSecret：CGOSS1EYWOAKrnfH4VAEhnTNrNyQv0fE
+	AppCode：245fb7d48d2a4a4887fdc938e3d92228
+
+大数据3加代理：
+	proxychains4 
+	
+大数据1：
+	cassandra:
+		pxcassandra,
+		
+oracle:
+	
+私有云-大数据：
+	对于公司私有云，有2套：1）用于嘉净项目开发（只有前后端环境），需要连接Tenda_9C5F20路由器，IP：192.168.2.161，用户名：zy，密码：px20200312；2）用于普烜环保大数据平台项目（有前后端环境和大数据平台），需要连接px01，ip：192.168.0.178，用户名：zy，密码：px20200312
+	
+	跨网连接：
+		ssh zy@ali.flutterin.app -p 39984
+		
+	https://www.nowcoder.com/ta/huawei 
+

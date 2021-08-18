@@ -1,0 +1,48 @@
+
+可视化界面
+http://101.37.203.206:8998/ui#			大数据1
+http://47.111.149.222:8998/ui#			大数据2
+
+
+session查看
+http://47.111.149.222:8998/sessions
+返回结果：
+	// 20201224125727
+	// http://101.37.203.206:8998/sessions
+
+	{
+	  "from": 0,
+	  "total": 0,
+	  "sessions": [
+		
+	  ]
+	}
+
+接口文档：https://livy.incubator.apache.org/docs/latest/rest-api.html
+
+webUI: http://192.168.0.178:8998
+
+批任务查看：http://192.168.0.178:8998/batches【get】
+
+任务提交：http://192.168.0.178:8998/batches【post】
+
+任务删除：http://192.168.0.178:8998/batches/{id} 【delete】
+	curl -X DELETE http://192.168.0.178:8998/sessions/0
+	curl -X DELETE http://192.168.0.178:8998/batches/10
+批任务查看：
+	http://192.168.0.178:8998/batches
+
+
+提交任务url：
+	http://101.37.203.206:8998/sessions/1/statements
+	
+https://livy.incubator.apache.org/docs/latest/rest-api.html
+
+kill:
+	
+	
+	
+B站教程：https://www.bilibili.com/video/BV1sx411Z735
+
+启动livy服务：
+	livy-server start
